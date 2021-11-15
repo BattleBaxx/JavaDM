@@ -1,11 +1,13 @@
 package core.util;
 
+import core.HttpClient;
 import core.exceptions.InvalidResponseException;
 import core.exceptions.RedirectException;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.Headers;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.util.regex.*;
@@ -60,5 +62,17 @@ public class HttpUtils {
         }
 
         return url;
+    }
+    public static Response getResponse(String url, @NotNull String method) throws IOException {
+        OkHttpClient client = HttpClient.getInstance();
+        Request.Builder b = new Request.Builder().url(url);
+        Request req = null;
+        switch (method) {
+            case "GET": req = b.get().build();
+            break;
+            case "HEAD": req = b.head().build();
+            break;
+        }
+        return client.newCall(req).execute();
     }
 }
