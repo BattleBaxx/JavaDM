@@ -26,5 +26,9 @@ hs_err_pid*
 # Target folder produced by Maven
 JavaDM/target
 
+# Files produced by Eclipse
+JavaDM/.classpath
+JavaDM/.project
+
 # IntelliJ folder
 .idea/

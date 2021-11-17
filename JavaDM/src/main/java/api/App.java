@@ -1,4 +1,4 @@
-package io.javapackage;
+package api;
 
 import core.DownloadTask;
 import core.SimpleDownloadTask;
@@ -31,7 +31,7 @@ public class App {
 
 		new Thread(dt).start();
 
-//		SpringApplication.run(App.class, args);
+		SpringApplication.run(App.class, args);
 	}
 
 }
