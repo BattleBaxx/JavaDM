@@ -1,6 +1,7 @@
 package api;
 
 import core.DownloadTask;
+import core.ParallelDownloadTask;
 import core.SimpleDownloadTask;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -18,20 +19,10 @@ public class App {
 		String randomVideo = "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4";
 		String railwayJson = "https://raw.githubusercontent.com/datameet/railways/master/schedules.json";
 
-		DownloadTask dt = new SimpleDownloadTask(railwayJson, 4096, "/home/saketh/Random/DMDownloads/video.mp4");
-		new Thread(dt).start();
+		DownloadTask dt = new ParallelDownloadTask(yukinoRaz, 4096, "/home/saketh/Random/DMDownloads/raz.jpg", 5);
+		dt.start();
 
-		try {
-			Thread.sleep(1000);
-			dt.cancel();
-			Thread.sleep(5000);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-
-		new Thread(dt).start();
-
-		SpringApplication.run(App.class, args);
+//		SpringApplication.run(App.class, args);
 	}
 
 }

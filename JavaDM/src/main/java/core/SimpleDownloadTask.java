@@ -5,7 +5,7 @@ import okhttp3.Response;
 
 import java.io.*;
 
-public class SimpleDownloadTask implements DownloadTask {
+class SimpleDownloadUnit implements Runnable {
 
     private String downloadUrl;
     private int bufferSize;
@@ -16,7 +16,7 @@ public class SimpleDownloadTask implements DownloadTask {
     private long downloadedLength;
     private DownloadStatus status;
 
-    public SimpleDownloadTask(String downloadUrl, int bufferSize, String filePath) throws IOException {
+    public SimpleDownloadUnit(String downloadUrl, int bufferSize, String filePath) throws IOException {
         this.downloadUrl = downloadUrl;
         this.bufferSize = bufferSize;
         this.filePath = filePath;
@@ -29,12 +29,11 @@ public class SimpleDownloadTask implements DownloadTask {
         try {
             this.totalDownloadLength = Long.parseLong(serverResponse.header("Content-Length"));
         } catch(NumberFormatException ne) {
-            System.out.println("No content-length from server");
+            this.totalDownloadLength = -1;
         }
         System.out.println("Download length total: " + this.totalDownloadLength);
     }
 
-    @Override
     public void run() {
         if(this.status == DownloadStatus.CANCELLED) {
             throw new IllegalThreadStateException("Task has been cancelled");
@@ -98,22 +97,54 @@ public class SimpleDownloadTask implements DownloadTask {
         System.out.println("Download complete");
     }
 
-    @Override
     public void cancel() {
         this.cancelDownload = true;
         System.out.println("Download cancelled");
     }
 
-    @Override
     public void pause() {
         this.pauseDownload = true;
         System.out.println("Download paused");
         System.out.println(this.downloadedLength + " out of " + this.totalDownloadLength);
     }
 
-    @Override
     public DownloadStatus getStatus() {
         return this.status;
     }
+}
 
+public class SimpleDownloadTask implements DownloadTask {
+    private SimpleDownloadUnit downloadUnit;
+    private Thread downloadThread;
+
+    public SimpleDownloadTask(String downloadUrl, int bufferSize, String filePath) throws IOException {
+        downloadUnit = new SimpleDownloadUnit(downloadUrl, bufferSize, filePath);
+    }
+
+    @Override
+    public void start() {
+        downloadThread = new Thread(downloadUnit);
+        downloadThread.start();
+    }
+
+    @Override
+    public void cancel() {
+        downloadUnit.cancel();
+    }
+
+    @Override
+    public void pause() {
+        downloadUnit.pause();
+    }
+
+    @Override
+    public void resume() {
+        downloadThread = new Thread(downloadUnit);
+        downloadThread.start();
+    }
+
+    @Override
+    public DownloadStatus getStatus() {
+        return downloadUnit.getStatus();
+    }
 }
