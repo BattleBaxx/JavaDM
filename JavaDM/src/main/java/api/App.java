@@ -22,22 +22,20 @@ public class App {
 		String randomVideo = "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4";
 		String railwayJson = "https://raw.githubusercontent.com/datameet/railways/master/schedules.json";
 
-//		DownloadTask dt = new ParallelDownloadTask(yukinoRaz, 4096, "/home/saketh/Random/DMDownloads/raz.jpg", 5);
-//		dt.start();
-		DownloadManager dm = new DownloadManager("/home/saketh/Random/DMDownloads");
-		dm.createDownloadTask(hackerReckobs, 1024, "reckobs", 5);
-//		try {
-//			Thread.sleep(300);
-//		} catch (InterruptedException e) {
-//			e.printStackTrace();
-//		}
+		DownloadManager dm = DownloadManager.getInstance();
+		dm.createDownloadTask(randomVideo, 1024, "reckobs");
+		try {
+			Thread.sleep(300);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 		dm.pauseDownload("reckobs");
 		System.out.println("Paused");
-//		try {
-//			Thread.sleep(5000);
-//		} catch (InterruptedException e) {
-//			e.printStackTrace();
-//		}
+		try {
+			Thread.sleep(5000);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 		dm.resumeDownload("reckobs");
 //		SpringApplication.run(App.class, args);
 	}

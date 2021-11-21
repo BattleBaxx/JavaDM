@@ -13,12 +13,19 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class DownloadManager {
+
+    private static final DownloadManager dm = new DownloadManager();
+
     Map<String, DownloadTask> downloadTaskList;
     String downloadFolder;
 
-    public DownloadManager(String downloadFolder) {
-        this.downloadFolder = downloadFolder;
+    private DownloadManager() {
+        this.downloadFolder = System.getenv("downloadFolder");
         downloadTaskList = new HashMap<>();
+    }
+
+    public static DownloadManager getInstance() {
+        return dm;
     }
 
     public void createDownloadTask(String url, String fileName) throws InvalidUrlException, IOException {
