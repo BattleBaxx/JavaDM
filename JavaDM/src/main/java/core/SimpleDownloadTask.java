@@ -9,17 +9,17 @@ class SimpleDownloadUnit implements Runnable {
 
     private String downloadUrl;
     private int bufferSize;
-    private String filePath;
+    private File file;
     private volatile boolean pauseDownload;
     private volatile boolean cancelDownload;
     private long totalDownloadLength;
     private long downloadedLength;
     private DownloadStatus status;
 
-    public SimpleDownloadUnit(String downloadUrl, int bufferSize, String filePath) throws IOException {
+    public SimpleDownloadUnit(String downloadUrl, int bufferSize, File file) throws IOException {
         this.downloadUrl = downloadUrl;
         this.bufferSize = bufferSize;
-        this.filePath = filePath;
+        this.file = file;
         this.pauseDownload = false;
         this.cancelDownload = false;
         this.status = DownloadStatus.CREATED;
@@ -55,7 +55,7 @@ class SimpleDownloadUnit implements Runnable {
         }
 
         this.status = DownloadStatus.DOWNLOADING;
-        try (BufferedOutputStream outputStream = new BufferedOutputStream(new FileOutputStream(filePath, fileAppendMode))) {
+        try (BufferedOutputStream outputStream = new BufferedOutputStream(new FileOutputStream(file, fileAppendMode))) {
             byte[] buffer = new byte[this.bufferSize];
 
             int bytesReceived;
@@ -68,7 +68,7 @@ class SimpleDownloadUnit implements Runnable {
                     outputStream.close();
                     this.status = DownloadStatus.CANCELLED;
                     this.cancelDownload = false;
-                    boolean done = new File(this.filePath).delete();
+                    boolean done = this.file.delete();
                     return;
                 }
 
@@ -99,13 +99,13 @@ class SimpleDownloadUnit implements Runnable {
 
     public void cancel() {
         this.cancelDownload = true;
-        System.out.println("Download cancelled");
+//        System.out.println("Download cancelled");
     }
 
     public void pause() {
         this.pauseDownload = true;
-        System.out.println("Download paused");
-        System.out.println(this.downloadedLength + " out of " + this.totalDownloadLength);
+//        System.out.println("Download paused");
+//        System.out.println(this.downloadedLength + " out of " + this.totalDownloadLength);
     }
 
     public DownloadStatus getStatus() {
@@ -115,15 +115,14 @@ class SimpleDownloadUnit implements Runnable {
 
 public class SimpleDownloadTask implements DownloadTask {
     private SimpleDownloadUnit downloadUnit;
-    private Thread downloadThread;
 
-    public SimpleDownloadTask(String downloadUrl, int bufferSize, String filePath) throws IOException {
-        downloadUnit = new SimpleDownloadUnit(downloadUrl, bufferSize, filePath);
+    public SimpleDownloadTask(String downloadUrl, int bufferSize, File file) throws IOException {
+        downloadUnit = new SimpleDownloadUnit(downloadUrl, bufferSize, file);
     }
 
     @Override
     public void start() {
-        downloadThread = new Thread(downloadUnit);
+        Thread downloadThread = new Thread(downloadUnit);
         downloadThread.start();
     }
 
@@ -139,7 +138,7 @@ public class SimpleDownloadTask implements DownloadTask {
 
     @Override
     public void resume() {
-        downloadThread = new Thread(downloadUnit);
+        Thread downloadThread = new Thread(downloadUnit);
         downloadThread.start();
     }
 

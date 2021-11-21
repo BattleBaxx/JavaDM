@@ -43,7 +43,6 @@ class ParallelDownloadUnit implements Runnable {
         }
         Response serverResponse = null;
         InputStream responseStream = null;
-        boolean fileAppendMode = false;
         try {
             OkHttpClient client = HttpClient.getInstance();
 
@@ -79,7 +78,6 @@ class ParallelDownloadUnit implements Runnable {
             while(true) {
                 if(this.cancelDownload) {
                     responseStream.close();
-                    randomAccessFile.close();
                     this.status = DownloadStatus.CANCELLED;
                     this.cancelDownload = false;
                     return;
@@ -87,7 +85,6 @@ class ParallelDownloadUnit implements Runnable {
 
                 if(this.pauseDownload) {
                     responseStream.close();
-                    randomAccessFile.close();
                     this.status = DownloadStatus.PAUSED;
                     this.pauseDownload = false;
                     return;
@@ -108,6 +105,14 @@ class ParallelDownloadUnit implements Runnable {
         }
         System.out.println("Unit complete");
     }
+
+    public void pause() {
+        this.pauseDownload = true;
+    }
+
+    public void cancel() {
+        this.cancelDownload = true;
+    }
 }
 
 public class ParallelDownloadTask implements DownloadTask {
@@ -115,8 +120,9 @@ public class ParallelDownloadTask implements DownloadTask {
     private long totalDownloadLength;
     private long rangeSize;
     private File downloadFile;
+    private DownloadStatus status;
 
-    public ParallelDownloadTask(String downloadUrl, int bufferSize, String filePath, int parallelCount) throws IOException, InvalidResponseException {
+    public ParallelDownloadTask(String downloadUrl, int bufferSize, File file, int parallelCount) throws IOException, InvalidResponseException {
         Response serverResponse = HttpUtils.getResponse(downloadUrl, "HEAD");
         try{
             this.totalDownloadLength = Long.parseLong(serverResponse.header("Content-Length"));
@@ -128,7 +134,7 @@ public class ParallelDownloadTask implements DownloadTask {
         long offset = 0;
 
 
-        FileOutputStream fout = new FileOutputStream(new File(filePath));
+        FileOutputStream fout = new FileOutputStream(file);
         byte buf[] = new byte[1024];
         for (int size = 0; size < this.totalDownloadLength; size += buf.length) {
             fout.write(buf);
@@ -136,7 +142,7 @@ public class ParallelDownloadTask implements DownloadTask {
         }
         fout.close();
 
-        this.downloadFile = new File(filePath);
+        this.downloadFile = file;
 
         downloadUnits = new ArrayList<>();
 
@@ -144,34 +150,71 @@ public class ParallelDownloadTask implements DownloadTask {
             downloadUnits.add(new ParallelDownloadUnit(downloadUrl, bufferSize, offset, Math.min(offset + this.rangeSize, this.totalDownloadLength), this.downloadFile));
             offset += this.rangeSize;
         }
+
+        this.status = DownloadStatus.CREATED;
     }
 
     @Override
     public void start() {
+        if(this.status == DownloadStatus.PAUSED) {
+            throw new IllegalThreadStateException("Thread cannot be started from paused state");
+        }
+
+        if(this.status == DownloadStatus.CANCELLED) {
+            throw new IllegalThreadStateException("Thread cannot be started from cancelled state");
+        }
+
         int i = 0;
         for(ParallelDownloadUnit pdu: this.downloadUnits) {
             new Thread(pdu, "Thread " + i).start();
             ++i;
         }
+        this.status = DownloadStatus.DOWNLOADING;
     }
 
     @Override
     public void cancel() {
-// delete file
+        if(this.status == DownloadStatus.CANCELLED) {
+           return;
+        }
+
+        for(ParallelDownloadUnit pdu: this.downloadUnits) {
+            pdu.cancel();
+        }
+
+        this.downloadFile.delete();
+        this.status = DownloadStatus.CANCELLED;
+
     }
 
     @Override
     public void pause() {
+        if(this.status == DownloadStatus.CANCELLED) {
+            throw new IllegalThreadStateException("Thread cannot be paused from cancelled state");
+        }
 
+        for(ParallelDownloadUnit pdu: this.downloadUnits) {
+            pdu.pause();
+        }
+        this.status = DownloadStatus.PAUSED;
     }
 
     @Override
     public void resume() {
+        if(this.status == DownloadStatus.CANCELLED) {
+            throw new IllegalThreadStateException("Thread cannot be resumed from cancelled state");
+        }
 
+        int i = 0;
+        for(ParallelDownloadUnit pdu: this.downloadUnits) {
+            new Thread(pdu, "Thread " + i).start();
+            ++i;
+        }
+        this.status = DownloadStatus.DOWNLOADING;
     }
 
     @Override
     public DownloadStatus getStatus() {
-        return null;
+        return this.status;
     }
 }
