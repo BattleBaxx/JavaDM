@@ -8,7 +8,9 @@ import okhttp3.Response;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 class ParallelDownloadUnit implements Runnable {
@@ -53,7 +55,7 @@ class ParallelDownloadUnit implements Runnable {
                     .build();
 
             serverResponse = client.newCall(partialRequest).execute();
-            System.out.println("Code: " + serverResponse.code());
+//            System.out.println("Code: " + serverResponse.code());
             if(serverResponse.code() != 206)
                 throw new IOException("Accept - ranges not supported");
 
@@ -74,7 +76,7 @@ class ParallelDownloadUnit implements Runnable {
             int bytesReceived;
             int count = 0;
 
-            System.out.println("Before the loop");
+//            System.out.println("Before the loop");
             while(true) {
                 if(this.cancelDownload) {
                     responseStream.close();
@@ -95,7 +97,7 @@ class ParallelDownloadUnit implements Runnable {
                 this.downloadedLength += bytesReceived;
                 randomAccessFile.write(buffer, 0, bytesReceived);
                 ++count;
-                System.out.println("Thread: " + Thread.currentThread().getName() + "Count: " + count + " Wrote " + bytesReceived);
+//                System.out.println("Thread: " + Thread.currentThread().getName() + "Count: " + count + " Wrote " + bytesReceived);
             }
 
             serverResponse.close();
@@ -103,7 +105,9 @@ class ParallelDownloadUnit implements Runnable {
             System.out.println("I/O exception");
             e.printStackTrace();
         }
-        System.out.println("Unit complete");
+
+        System.out.println("Set to completed");
+        this.status = DownloadStatus.COMPLETED;
     }
 
     public void pause() {
@@ -113,6 +117,12 @@ class ParallelDownloadUnit implements Runnable {
     public void cancel() {
         this.cancelDownload = true;
     }
+
+    public DownloadStatus getStatus() { return this.status; }
+
+    public long getDownloadedLength() { return this.downloadedLength; }
+
+    public String getDownloadUrl() { return this.downloadUrl; }
 }
 
 public class ParallelDownloadTask implements DownloadTask {
@@ -120,7 +130,6 @@ public class ParallelDownloadTask implements DownloadTask {
     private long totalDownloadLength;
     private long rangeSize;
     private File downloadFile;
-    private DownloadStatus status;
 
     public ParallelDownloadTask(String downloadUrl, int bufferSize, File file, int parallelCount) throws IOException, InvalidResponseException {
         Response serverResponse = HttpUtils.getResponse(downloadUrl, "HEAD");
@@ -151,16 +160,16 @@ public class ParallelDownloadTask implements DownloadTask {
             offset += this.rangeSize;
         }
 
-        this.status = DownloadStatus.CREATED;
     }
 
     @Override
     public void start() {
-        if(this.status == DownloadStatus.PAUSED) {
+        DownloadStatus curStatus = this.getStatus();
+        if(curStatus == DownloadStatus.PAUSED) {
             throw new IllegalThreadStateException("Thread cannot be started from paused state");
         }
 
-        if(this.status == DownloadStatus.CANCELLED) {
+        if(curStatus == DownloadStatus.CANCELLED) {
             throw new IllegalThreadStateException("Thread cannot be started from cancelled state");
         }
 
@@ -169,13 +178,16 @@ public class ParallelDownloadTask implements DownloadTask {
             new Thread(pdu, "Thread " + i).start();
             ++i;
         }
-        this.status = DownloadStatus.DOWNLOADING;
     }
 
     @Override
     public void cancel() {
-        if(this.status == DownloadStatus.CANCELLED) {
+        DownloadStatus curStatus = this.getStatus();
+        if(curStatus == DownloadStatus.CANCELLED) {
            return;
+        }
+        if(curStatus == DownloadStatus.COMPLETED) {
+            return;
         }
 
         for(ParallelDownloadUnit pdu: this.downloadUnits) {
@@ -183,38 +195,96 @@ public class ParallelDownloadTask implements DownloadTask {
         }
 
         this.downloadFile.delete();
-        this.status = DownloadStatus.CANCELLED;
 
     }
 
     @Override
     public void pause() {
-        if(this.status == DownloadStatus.CANCELLED) {
+        DownloadStatus curStatus = this.getStatus();
+        if( curStatus == DownloadStatus.CANCELLED) {
             throw new IllegalThreadStateException("Thread cannot be paused from cancelled state");
         }
+        if(curStatus == DownloadStatus.COMPLETED) {
+            return;
+        }
+
 
         for(ParallelDownloadUnit pdu: this.downloadUnits) {
             pdu.pause();
         }
-        this.status = DownloadStatus.PAUSED;
     }
 
     @Override
     public void resume() {
-        if(this.status == DownloadStatus.CANCELLED) {
+        DownloadStatus curStatus = this.getStatus();
+        if(curStatus == DownloadStatus.CANCELLED) {
             throw new IllegalThreadStateException("Thread cannot be resumed from cancelled state");
         }
+        if(curStatus == DownloadStatus.COMPLETED) {
+            return;
+        }
+
 
         int i = 0;
         for(ParallelDownloadUnit pdu: this.downloadUnits) {
-            new Thread(pdu, "Thread " + i).start();
-            ++i;
+            if(pdu.getStatus() == DownloadStatus.PAUSED) {
+                new Thread(pdu, "Thread " + i).start();
+                ++i;
+            }
         }
-        this.status = DownloadStatus.DOWNLOADING;
     }
 
     @Override
     public DownloadStatus getStatus() {
-        return this.status;
+        int cancelledCount = 0;
+        int pausedCount = 0;
+        int createdCount = 0;
+        int downloadingCount = 0;
+
+        for(ParallelDownloadUnit pdu: this.downloadUnits) {
+            System.out.println(pdu.getStatus());
+            if(pdu.getStatus() == DownloadStatus.CANCELLED)
+                cancelledCount++;
+            if(pdu.getStatus() == DownloadStatus.PAUSED)
+                pausedCount++;
+            if(pdu.getStatus() == DownloadStatus.CREATED)
+                createdCount++;
+            if(pdu.getStatus() == DownloadStatus.DOWNLOADING)
+                downloadingCount++;
+        }
+
+        if(cancelledCount != 0)
+            return DownloadStatus.CANCELLED;
+        if(createdCount != 0)
+            return DownloadStatus.CREATED;
+        if(pausedCount != 0)
+            return DownloadStatus.PAUSED;
+        if(downloadingCount != 0)
+            return DownloadStatus.DOWNLOADING;
+
+        return DownloadStatus.COMPLETED;
+    }
+
+    @Override
+    public Map<String, String> getDownloadDetails() {
+        Map<String, String> details = new HashMap<>();
+
+        String url = this.downloadUnits.get(0).getDownloadUrl();
+        details.put("url", url);
+
+        DownloadStatus status = this.getStatus();
+        details.put("status", status.name());
+
+        long downloadedLength = 0;
+        for(ParallelDownloadUnit pdu: this.downloadUnits) {
+            downloadedLength += pdu.getDownloadedLength();
+        }
+
+        if(status == DownloadStatus.DOWNLOADING || status == DownloadStatus.PAUSED) {
+            details.put("completedSize", String.valueOf(downloadedLength));
+            details.put("totalSize", String.valueOf(this.totalDownloadLength));
+        }
+
+        return details;
     }
 }

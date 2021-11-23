@@ -23,7 +23,7 @@ public class App {
 		String railwayJson = "https://raw.githubusercontent.com/datameet/railways/master/schedules.json";
 
 		DownloadManager dm = DownloadManager.getInstance();
-		dm.createDownloadTask(randomVideo, 1024, "reckobs");
+		dm.createDownloadTask(hackerReckobs, 1024, "reckobs", 5);
 		try {
 			Thread.sleep(300);
 		} catch (InterruptedException e) {
@@ -31,12 +31,18 @@ public class App {
 		}
 		dm.pauseDownload("reckobs");
 		System.out.println("Paused");
+		System.out.println(dm.getDownloadDetail("reckobs"));
 		try {
-			Thread.sleep(5000);
+			Thread.sleep(2000);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 		dm.resumeDownload("reckobs");
+		try {
+			Thread.sleep(10000);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 //		SpringApplication.run(App.class, args);
 	}
 

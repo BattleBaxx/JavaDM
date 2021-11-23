@@ -9,8 +9,7 @@ import core.util.HttpUtils;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class DownloadManager {
 
@@ -45,6 +44,8 @@ public class DownloadManager {
         downloadTaskList.put(fileName, newTask);
     }
 
+    // If parallel count not specified, it is assumed to be a simple download task
+
     public void createDownloadTask(String url, String fileName, int parallelCount) throws InvalidUrlException, IOException {
         createDownloadTask(url, 1024, fileName, parallelCount);
     }
@@ -77,5 +78,19 @@ public class DownloadManager {
 
     public void getDownloadStatus(String fileName) {
         this.downloadTaskList.get(fileName).getStatus();
+    }
+
+    public Map<String, String> getDownloadDetail(String fileName) {
+        DownloadTask dt = this.downloadTaskList.get(fileName);
+        return dt.getDownloadDetails();
+    }
+
+    public List<Map<String, String>> getAllDownloadDetails() {
+        List<Map<String, String>> result = new ArrayList<>();
+        for(Map.Entry<String, DownloadTask> entry: this.downloadTaskList.entrySet()) {
+            DownloadTask dt = entry.getValue();
+            result.add(dt.getDownloadDetails());
+        }
+        return result;
     }
 }
