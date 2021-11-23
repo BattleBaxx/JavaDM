@@ -75,4 +75,9 @@ public class HttpUtils {
         }
         return client.newCall(req).execute();
     }
+
+    public static String getExtension(String url) throws IOException {
+        Response resp = getResponse(url, "HEAD");
+        return resp.body().contentType().subtype();
+    }
 }
