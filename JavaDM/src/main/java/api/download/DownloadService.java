@@ -25,4 +25,21 @@ public class DownloadService {
 	public void addDownload(DownloadDTO download) {
 		downloadDTOList.add(download);
 	}
+
+	public void pauseDownload(String id, DownloadDTO download) {
+		
+		for(int i = 0; i < downloadDTOList.size(); i++) {
+			DownloadDTO d = downloadDTOList.get(i);
+			if(d.getId().equals(id)) {
+				downloadDTOList.set(i,  download);
+				return;
+			}
+		}
+		
+	}
+
+	public void deleteDownload(String id) {
+		// TODO Auto-generated method stub
+		
+	}
 }

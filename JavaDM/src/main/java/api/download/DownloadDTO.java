@@ -13,11 +13,14 @@ public class DownloadDTO {
 	@JsonView(View.Get.class)
 	private long totalLength;
 	
+	private boolean isPaused;
+	
 	public DownloadDTO() {
 		this.url = "";
 		this.id = "";
 		this.downloadedLength = 0;
 		this.totalLength = 0;
+		this.isPaused = false;
 	}
 	
 	public DownloadDTO(String url, String id, long downloadedLength, long totalLength) {
@@ -25,6 +28,7 @@ public class DownloadDTO {
 		this.id = id;
 		this.downloadedLength = downloadedLength;
 		this.totalLength = totalLength;
+		this.isPaused = false;
 	}
 	
 	public String getUrl() {

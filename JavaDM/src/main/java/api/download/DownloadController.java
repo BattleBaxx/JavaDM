@@ -1,6 +1,7 @@
 package api.download;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,7 +32,23 @@ public class DownloadController {
 	}
 	
 	@RequestMapping(method=RequestMethod.POST, value="/download")
-	public void addDownload(@RequestBody DownloadDTO download) {
-		downloadService.addDownload(download);
+	public void addDownload(@RequestBody Map<String, Object> download) {
+//		downloadService.addDownload(download);
+		System.out.println(download);
+	}
+	
+	@RequestMapping(method=RequestMethod.PUT, value="/download/pause/{id}")
+	public void pauseDownload(@RequestBody Map<String, Object> download, @PathVariable String id) {
+//		downloadService.pauseDownload(id, download);
+	}
+	
+	@RequestMapping(method=RequestMethod.PUT, value="/download/resume/{id}")
+	public void resumeDownload(@RequestBody Map<String, Object> download, @PathVariable String id) {
+//		downloadService.resumeDownload(id, download);
+	}
+	
+	@RequestMapping(method=RequestMethod.DELETE, value="/download/{id}")
+	public void deleteDownload(@PathVariable String id) {
+		downloadService.deleteDownload(id);
 	}
 }

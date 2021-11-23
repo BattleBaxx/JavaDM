@@ -13,16 +13,16 @@ import java.io.IOException;
 public class App {
 
 	public static void main(String[] args) throws IOException {
-		String yukinoRaz = "https://avatars.githubusercontent.com/u/52282402?v=4";
-		String googleUrl = "https://en.wikipedia.org/wiki/tom";
-		String hackerReckobs = "https://cdn.discordapp.com/attachments/902111613874765825/908724409118904350/unknown.png";
-		String randomVideo = "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4";
-		String railwayJson = "https://raw.githubusercontent.com/datameet/railways/master/schedules.json";
+//		String yukinoRaz = "https://avatars.githubusercontent.com/u/52282402?v=4";
+//		String googleUrl = "https://en.wikipedia.org/wiki/tom";
+//		String hackerReckobs = "https://cdn.discordapp.com/attachments/902111613874765825/908724409118904350/unknown.png";
+//		String randomVideo = "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4";
+//		String railwayJson = "https://raw.githubusercontent.com/datameet/railways/master/schedules.json";
+//
+//		DownloadTask dt = new ParallelDownloadTask(yukinoRaz, 4096, "/home/saketh/Random/DMDownloads/raz.jpg", 5);
+//		dt.start();
 
-		DownloadTask dt = new ParallelDownloadTask(yukinoRaz, 4096, "/home/saketh/Random/DMDownloads/raz.jpg", 5);
-		dt.start();
-
-//		SpringApplication.run(App.class, args);
+		SpringApplication.run(App.class, args);
 	}
 
 }
