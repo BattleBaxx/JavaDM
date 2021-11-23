@@ -17,34 +17,34 @@ public class App {
 
 
 	public static void main(String[] args) throws IOException, InvalidUrlException {
-		String yukinoRaz = "https://avatars.githubusercontent.com/u/52282402?v=4";
-		String googleUrl = "https://en.wikipedia.org/wiki/tom";
-		String hackerReckobs = "https://cdn.discordapp.com/attachments/902111613874765825/908724409118904350/unknown.png";
-		String randomVideo = "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4";
-		String railwayJson = "https://raw.githubusercontent.com/datameet/railways/master/schedules.json";
-
-		DownloadManager dm = DownloadManager.getInstance();
-		dm.createDownloadTask(hackerReckobs, 1024, "reckobs", 5);
-		try {
-			Thread.sleep(300);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		dm.pauseDownload("reckobs");
-		System.out.println("Paused");
-		System.out.println(dm.getDownloadDetail("reckobs"));
-		try {
-			Thread.sleep(2000);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		dm.resumeDownload("reckobs");
-		try {
-			Thread.sleep(10000);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-//		SpringApplication.run(App.class, args);
+//		String yukinoRaz = "https://avatars.githubusercontent.com/u/52282402?v=4";
+//		String googleUrl = "https://en.wikipedia.org/wiki/tom";
+//		String hackerReckobs = "https://cdn.discordapp.com/attachments/902111613874765825/908724409118904350/unknown.png";
+//		String randomVideo = "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4";
+//		String railwayJson = "https://raw.githubusercontent.com/datameet/railways/master/schedules.json";
+//
+//		DownloadManager dm = DownloadManager.getInstance();
+//		dm.createDownloadTask(hackerReckobs, 1024, "reckobs", 5);
+//		try {
+//			Thread.sleep(300);
+//		} catch (InterruptedException e) {
+//			e.printStackTrace();
+//		}
+//		dm.pauseDownload("reckobs");
+//		System.out.println("Paused");
+//		System.out.println(dm.getDownloadDetail("reckobs"));
+//		try {
+//			Thread.sleep(2000);
+//		} catch (InterruptedException e) {
+//			e.printStackTrace();
+//		}
+//		dm.resumeDownload("reckobs");
+//		try {
+//			Thread.sleep(10000);
+//		} catch (InterruptedException e) {
+//			e.printStackTrace();
+//		}
+		SpringApplication.run(App.class, args);
 	}
 
 }

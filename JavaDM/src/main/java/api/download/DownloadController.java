@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,34 +23,37 @@ public class DownloadController {
 	
 	@RequestMapping("/downloads")
 	@JsonView(View.Get.class)
-	public List<DownloadDTO> getAllDownloads() {
+	public List<Map<String, String>> getAllDownloads() {
 		return downloadService.getDownloads();
 	}
 	
 	@RequestMapping("/download/{id}")
 	@JsonView(View.Get.class)
-	public DownloadDTO getDownload(@PathVariable String id) {
+	public Map<String, String> getDownload(@PathVariable String id) {
 		return downloadService.getDownload(id);
 	}
 	
 	@RequestMapping(method=RequestMethod.POST, value="/download")
-	public void addDownload(@RequestBody Map<String, Object> download) {
-//		downloadService.addDownload(download);
-		System.out.println(download);
+	public ResponseEntity<Object> addDownload(@RequestBody Map<String, String> download) {
+		if(!download.containsKey("url") || !download.containsKey("file_name")) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+		downloadService.addDownload(download);
+		return null;
 	}
 	
 	@RequestMapping(method=RequestMethod.PUT, value="/download/pause/{id}")
-	public void pauseDownload(@RequestBody Map<String, Object> download, @PathVariable String id) {
-//		downloadService.pauseDownload(id, download);
+	public void pauseDownload(@PathVariable String id) {
+		downloadService.pauseDownload(id);
 	}
 	
 	@RequestMapping(method=RequestMethod.PUT, value="/download/resume/{id}")
-	public void resumeDownload(@RequestBody Map<String, Object> download, @PathVariable String id) {
-//		downloadService.resumeDownload(id, download);
+	public void resumeDownload(@PathVariable String id) {
+		downloadService.resumeDownload(id);
 	}
 	
 	@RequestMapping(method=RequestMethod.DELETE, value="/download/{id}")
 	public void deleteDownload(@PathVariable String id) {
-		downloadService.deleteDownload(id);
+		downloadService.cancelDownload(id);
 	}
 }
