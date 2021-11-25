@@ -24,10 +24,9 @@ public class DownloadService {
 	}
 
 	public void addDownload(Map<String, String> download) {
-//		dm.a
 		String url = download.get("url");
 		String fileName = download.get("file_name");
-		boolean containsParallel = download.containsKey("prallel_count");
+		boolean containsParallel = download.containsKey("parallel_count");
 		boolean containsBufferSize = download.containsKey("buffer_size");
 		
 		if(containsParallel) {

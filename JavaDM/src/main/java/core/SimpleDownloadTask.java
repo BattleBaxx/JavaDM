@@ -1,5 +1,7 @@
 package core;
 
+import core.exceptions.ConnectionException;
+import core.exceptions.FileException;
 import core.util.HttpUtils;
 import okhttp3.Response;
 
@@ -46,55 +48,88 @@ class SimpleDownloadUnit implements Runnable {
         try {
             serverResponse = HttpUtils.getResponse(this.downloadUrl, "GET");
             responseStream = serverResponse.body().byteStream();
-
+        } catch (IOException e) {
+            throw new ConnectionException("Error in receiving response object from server");
+        }
+        try {
             if(this.status == DownloadStatus.PAUSED) {
                 responseStream.skip(this.downloadedLength);
                 System.out.println("Resuming download");
                 fileAppendMode = true;
             }
         } catch (IOException e) {
-            System.out.println("Response / skip error");
+            throw new ConnectionException("Error in resuming download");
         }
 
         this.status = DownloadStatus.DOWNLOADING;
-        try (BufferedOutputStream outputStream = new BufferedOutputStream(new FileOutputStream(file, fileAppendMode))) {
-            byte[] buffer = new byte[this.bufferSize];
 
-            int bytesReceived;
-            int count = 0;
+        BufferedOutputStream outputStream;
+        try {
+            outputStream = new BufferedOutputStream(new FileOutputStream(file, fileAppendMode));
+        } catch(FileNotFoundException fe) {
+            throw new FileException("File could not be opened for writing");
+        }
 
-            System.out.println("Before the loop");
-            while(true) {
-                if(this.cancelDownload) {
+        byte[] buffer = new byte[this.bufferSize];
+
+        int bytesReceived;
+        int count = 0;
+
+        System.out.println("Before the loop");
+        while(true) {
+            if(this.cancelDownload) {
+                try {
                     responseStream.close();
-                    outputStream.close();
-                    this.status = DownloadStatus.CANCELLED;
-                    this.cancelDownload = false;
-                    boolean done = this.file.delete();
-                    return;
+                } catch (IOException e) {
+                    throw new ConnectionException("Exception while closing server stream");
                 }
-
-                if(this.pauseDownload) {
-                    responseStream.close();
+                try {
                     outputStream.close();
-                    this.status = DownloadStatus.PAUSED;
-                    this.pauseDownload = false;
-                    return;
+                } catch (IOException e) {
+                    throw new FileException("Exception while closing file stream");
                 }
-
-                bytesReceived = responseStream.read(buffer);
-                if(bytesReceived == -1) break;
-                this.downloadedLength += bytesReceived;
-                outputStream.write(buffer, 0, bytesReceived);
-                outputStream.flush();
-                ++count;
-                System.out.println("Count: " + count + " Wrote " + bytesReceived);
+                this.status = DownloadStatus.CANCELLED;
+                this.cancelDownload = false;
+                this.file.delete();
+                return;
             }
 
+            if(this.pauseDownload) {
+                try {
+                    responseStream.close();
+                } catch (IOException e) {
+                    throw new ConnectionException("Exception while closing server stream");
+                }
+                try {
+                    outputStream.close();
+                } catch (IOException e) {
+                    throw new FileException("Exception while closing file stream");
+                }
+                this.status = DownloadStatus.PAUSED;
+                this.pauseDownload = false;
+                return;
+            }
+
+            try {
+                bytesReceived = responseStream.read(buffer);
+            } catch (IOException e) {
+                throw new ConnectionException("Exception while reading from server response stream");
+            }
+
+            if(bytesReceived == -1) break;
+            this.downloadedLength += bytesReceived;
+
+            try {
+                outputStream.write(buffer, 0, bytesReceived);
+                outputStream.flush();
+            } catch (IOException e) {
+                throw new FileException("Exception while writing to file");
+            }
+
+            ++count;
+            System.out.println("Count: " + count + " Wrote " + bytesReceived);
+
             serverResponse.close();
-        } catch (IOException e) {
-            System.out.println("I/O exception");
-            e.printStackTrace();
         }
 
         this.status = DownloadStatus.COMPLETED;

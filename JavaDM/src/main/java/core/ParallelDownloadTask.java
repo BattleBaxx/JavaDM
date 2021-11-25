@@ -1,6 +1,9 @@
 package core;
 
+import core.exceptions.ConnectionException;
+import core.exceptions.FileException;
 import core.exceptions.InvalidResponseException;
+import core.exceptions.RangesUnsupportedException;
 import core.util.HttpUtils;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -45,7 +48,6 @@ class ParallelDownloadUnit implements Runnable {
         }
         Response serverResponse = null;
         InputStream responseStream = null;
-        try {
             OkHttpClient client = HttpClient.getInstance();
 
             Request partialRequest = new Request.Builder()
@@ -53,58 +55,87 @@ class ParallelDownloadUnit implements Runnable {
                     .header("Range", String.format("bytes=%s-%s", start, end))
                     .get()
                     .build();
-
-            serverResponse = client.newCall(partialRequest).execute();
+            try {
+                serverResponse = client.newCall(partialRequest).execute();
+            } catch (IOException e) {
+                throw new ConnectionException("An error occurred while connecting to the server");
+            }
 //            System.out.println("Code: " + serverResponse.code());
             if(serverResponse.code() != 206)
-                throw new IOException("Accept - ranges not supported");
+                throw new RangesUnsupportedException("Accept - ranges not supported");
 
             responseStream = serverResponse.body().byteStream();
 
             if(this.status == DownloadStatus.PAUSED) {
-                responseStream.skip(this.downloadedLength);
+                try {
+                    responseStream.skip(this.downloadedLength);
+                } catch (IOException e) {
+                    throw new ConnectionException("An exception occurred while skipping the response stream");
+                }
                 System.out.println("Resuming download");
             }
-        } catch (IOException e) {
-            System.out.println("Response / skip error");
-        }
 
         this.status = DownloadStatus.DOWNLOADING;
-        try {
-            byte[] buffer = new byte[this.bufferSize];
+        byte[] buffer = new byte[this.bufferSize];
 
-            int bytesReceived;
-            int count = 0;
+        int bytesReceived;
+        int count = 0;
 
 //            System.out.println("Before the loop");
-            while(true) {
-                if(this.cancelDownload) {
+        while(true) {
+            if(this.cancelDownload) {
+                try{
                     responseStream.close();
-                    this.status = DownloadStatus.CANCELLED;
-                    this.cancelDownload = false;
-                    return;
+                } catch (IOException e) {
+                    throw new ConnectionException("Exception while closing server stream");
+                }
+                try {
+                    randomAccessFile.close();
+                } catch (IOException e) {
+                    throw new FileException("Exception while closing file stream");
                 }
 
-                if(this.pauseDownload) {
-                    responseStream.close();
-                    this.status = DownloadStatus.PAUSED;
-                    this.pauseDownload = false;
-                    return;
-                }
-
-                bytesReceived = responseStream.read(buffer);
-                if(bytesReceived == -1) break;
-                this.downloadedLength += bytesReceived;
-                randomAccessFile.write(buffer, 0, bytesReceived);
-                ++count;
-//                System.out.println("Thread: " + Thread.currentThread().getName() + "Count: " + count + " Wrote " + bytesReceived);
+                this.status = DownloadStatus.CANCELLED;
+                this.cancelDownload = false;
+                return;
             }
 
-            serverResponse.close();
-        } catch (IOException e) {
-            System.out.println("I/O exception");
-            e.printStackTrace();
+            if(this.pauseDownload) {
+                try{
+                    responseStream.close();
+                } catch (IOException e) {
+                    throw new ConnectionException("Exception while closing server stream");
+                }
+                try {
+                    randomAccessFile.close();
+                } catch (IOException e) {
+                    throw new FileException("Exception while closing file stream");
+                }
+
+                this.status = DownloadStatus.PAUSED;
+                this.pauseDownload = false;
+                return;
+            }
+
+            try {
+                bytesReceived = responseStream.read(buffer);
+            } catch (IOException e) {
+                throw new ConnectionException("Exception while reading from server response stream");
+            }
+            if(bytesReceived == -1) break;
+            this.downloadedLength += bytesReceived;
+
+            try {
+                randomAccessFile.write(buffer, 0, bytesReceived);
+            } catch (IOException e) {
+                throw new FileException("Exception while writing to file");
+            }
+            ++count;
+//                System.out.println("Thread: " + Thread.currentThread().getName() + "Count: " + count + " Wrote " + bytesReceived);
         }
+
+        serverResponse.close();
+
 
         System.out.println("Set to completed");
         this.status = DownloadStatus.COMPLETED;
@@ -165,12 +196,9 @@ public class ParallelDownloadTask implements DownloadTask {
     @Override
     public void start() {
         DownloadStatus curStatus = this.getStatus();
-        if(curStatus == DownloadStatus.PAUSED) {
-            throw new IllegalThreadStateException("Thread cannot be started from paused state");
-        }
 
-        if(curStatus == DownloadStatus.CANCELLED) {
-            throw new IllegalThreadStateException("Thread cannot be started from cancelled state");
+        if( curStatus != DownloadStatus.CREATED) {
+            throw new IllegalThreadStateException(String.format("Download cannot be paused from %s state", curStatus));
         }
 
         int i = 0;
@@ -187,7 +215,7 @@ public class ParallelDownloadTask implements DownloadTask {
            return;
         }
         if(curStatus == DownloadStatus.COMPLETED) {
-            return;
+            throw new IllegalThreadStateException("An already completed download cannot be cancelled");
         }
 
         for(ParallelDownloadUnit pdu: this.downloadUnits) {
@@ -201,29 +229,25 @@ public class ParallelDownloadTask implements DownloadTask {
     @Override
     public void pause() {
         DownloadStatus curStatus = this.getStatus();
-        if( curStatus == DownloadStatus.CANCELLED) {
-            throw new IllegalThreadStateException("Thread cannot be paused from cancelled state");
-        }
-        if(curStatus == DownloadStatus.COMPLETED) {
-            return;
-        }
 
+        if( curStatus != DownloadStatus.DOWNLOADING) {
+            throw new IllegalThreadStateException(String.format("Download cannot be paused from %s state", curStatus));
+        }
 
         for(ParallelDownloadUnit pdu: this.downloadUnits) {
-            pdu.pause();
+            if(pdu.getStatus() == DownloadStatus.DOWNLOADING) {
+                pdu.pause();
+            }
         }
     }
 
     @Override
     public void resume() {
         DownloadStatus curStatus = this.getStatus();
-        if(curStatus == DownloadStatus.CANCELLED) {
-            throw new IllegalThreadStateException("Thread cannot be resumed from cancelled state");
-        }
-        if(curStatus == DownloadStatus.COMPLETED) {
-            return;
-        }
 
+        if( curStatus != DownloadStatus.PAUSED) {
+            throw new IllegalThreadStateException(String.format("Download cannot be resumed from %s state", curStatus));
+        }
 
         int i = 0;
         for(ParallelDownloadUnit pdu: this.downloadUnits) {
