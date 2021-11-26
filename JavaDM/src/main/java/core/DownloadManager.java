@@ -1,13 +1,12 @@
 package core;
 
-import core.DownloadTask;
-import core.ParallelDownloadTask;
-import core.SimpleDownloadTask;
 import core.exceptions.InvalidUrlException;
+import core.exceptions.NoSuchDownloadException;
+import core.util.FileUtils;
 import core.util.HttpUtils;
 
 import java.io.File;
-import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
@@ -27,60 +26,89 @@ public class DownloadManager {
         return dm;
     }
 
-    public void createDownloadTask(String url, String fileName) throws InvalidUrlException, IOException {
-        createDownloadTask(url, 1024, fileName);
+    public String createDownloadTask(String url, String fileName) {
+        return createDownloadTask(url, 1024, fileName);
     }
 
-    public void createDownloadTask(String url, int maxBufferSize, String fileName) throws InvalidUrlException, IOException {
-        if(!HttpUtils.validUrl(url)) {
-            throw new InvalidUrlException("The provided URL is invalid");
-        }
-        String fileExtension = HttpUtils.getExtension(url);
-        String fullFilePath = Paths.get(this.downloadFolder,fileName + "." + fileExtension).toString();
+    public String createDownloadTask(String url, int maxBufferSize, String fileName) {
+        String fullFileName = this.createDownloadTaskInit(url, fileName);
+
+        String fullFilePath = FileUtils.getFullFilePath(fullFileName);
         File downloadFile = new File(fullFilePath);
 
-        DownloadTask newTask = new SimpleDownloadTask(url, maxBufferSize, downloadFile);
+        DownloadTask newTask = new SerialDownloadTask(url, maxBufferSize, downloadFile);
+        this.downloadTaskList.put(fullFileName, newTask);
         newTask.start();
-        downloadTaskList.put(fileName, newTask);
+
+        return fullFileName;
     }
 
     // If parallel count not specified, it is assumed to be a simple download task
 
-    public void createDownloadTask(String url, String fileName, int parallelCount) throws InvalidUrlException, IOException {
-        createDownloadTask(url, 1024, fileName, parallelCount);
+    public String createDownloadTask(String url, String fileName, int parallelCount) {
+        return createDownloadTask(url, 1024, fileName, parallelCount);
     }
 
-    public void createDownloadTask(String url, int maxBufferSize, String fileName, int parallelCount) throws InvalidUrlException, IOException {
+    public String createDownloadTask(String url, int maxBufferSize, String fileName, int parallelCount) {
+        String fullFileName = this.createDownloadTaskInit(url, fileName);
+
+        String fullFilePath = Paths.get(System.getenv("downloadFolder"), fullFileName).toString();
+        File downloadFile = new File(fullFilePath);
+
+        DownloadTask newTask = new ParallelDownloadTask(url, maxBufferSize, downloadFile, parallelCount);
+        this.downloadTaskList.put(fullFileName, newTask);
+        newTask.start();
+
+        return fullFileName;
+    }
+
+    private String createDownloadTaskInit(String url, String fileName) {
         if(!HttpUtils.validUrl(url)) {
             throw new InvalidUrlException("The provided URL is invalid");
         }
 
-        String fileExtension = HttpUtils.getExtension(url);
-        String fullFilePath = Paths.get(this.downloadFolder,fileName + "." + fileExtension).toString();
-        File downloadFile = new File(fullFilePath);
 
-        DownloadTask newTask = new ParallelDownloadTask(url, maxBufferSize, downloadFile, parallelCount);
-        newTask.start();
-        downloadTaskList.put(fileName, newTask);
+        String fileExtension = HttpUtils.getExtension(url);
+        String fileNameExtension = fileName + "." + fileExtension;
+
+        if(this.downloadTaskList.containsKey(fileNameExtension)) {
+            throw new NoSuchDownloadException("Download ID already exists");
+        }
+        return fileNameExtension;
     }
 
     public void pauseDownload(String fileName) {
+        if(!this.downloadTaskList.containsKey(fileName)) {
+            throw new NoSuchDownloadException("Invalid download ID");
+        }
         this.downloadTaskList.get(fileName).pause();
     }
 
     public void cancelDownload(String fileName) {
+        if(!this.downloadTaskList.containsKey(fileName)) {
+            throw new NoSuchDownloadException("Invalid download ID");
+        }
         this.downloadTaskList.get(fileName).cancel();
     }
 
     public void resumeDownload(String fileName) {
+        if(!this.downloadTaskList.containsKey(fileName)) {
+            throw new NoSuchDownloadException("Invalid download ID");
+        }
         this.downloadTaskList.get(fileName).resume();
     }
 
     public void getDownloadStatus(String fileName) {
+        if(!this.downloadTaskList.containsKey(fileName)) {
+            throw new NoSuchDownloadException("Invalid download ID");
+        }
         this.downloadTaskList.get(fileName).getStatus();
     }
 
     public Map<String, String> getDownloadDetail(String fileName) {
+        if(!this.downloadTaskList.containsKey(fileName)) {
+            throw new NoSuchDownloadException("Invalid download ID");
+        }
         DownloadTask dt = this.downloadTaskList.get(fileName);
         return dt.getDownloadDetails();
     }

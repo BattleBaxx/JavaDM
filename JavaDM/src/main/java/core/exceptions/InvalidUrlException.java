@@ -1,6 +1,6 @@
 package core.exceptions;
 
-public class InvalidUrlException extends Exception {
+public class InvalidUrlException extends BaseException {
     public InvalidUrlException(String message) {
         super(message);
     }

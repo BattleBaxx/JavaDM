@@ -2,6 +2,7 @@ package core;
 
 import core.exceptions.ConnectionException;
 import core.exceptions.FileException;
+import core.exceptions.InvalidStateException;
 import core.util.HttpUtils;
 import okhttp3.Response;
 
@@ -9,7 +10,7 @@ import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
 
-class SimpleDownloadUnit implements Runnable {
+class SerialDownloadUnit implements Runnable {
 
     private String downloadUrl;
     private int bufferSize;
@@ -20,7 +21,7 @@ class SimpleDownloadUnit implements Runnable {
     private long downloadedLength;
     private DownloadStatus status;
 
-    public SimpleDownloadUnit(String downloadUrl, int bufferSize, File file) throws IOException {
+    public SerialDownloadUnit(String downloadUrl, int bufferSize, File file) {
         this.downloadUrl = downloadUrl;
         this.bufferSize = bufferSize;
         this.file = file;
@@ -29,7 +30,9 @@ class SimpleDownloadUnit implements Runnable {
         this.status = DownloadStatus.CREATED;
 
         this.downloadedLength = 0;
-        Response serverResponse = HttpUtils.getResponse(this.downloadUrl, "HEAD");
+        Response serverResponse;
+        serverResponse = HttpUtils.getResponse(this.downloadUrl, "HEAD");
+
         try {
             this.totalDownloadLength = Long.parseLong(serverResponse.header("Content-Length"));
         } catch(NumberFormatException ne) {
@@ -40,17 +43,15 @@ class SimpleDownloadUnit implements Runnable {
 
     public void run() {
         if(this.status == DownloadStatus.CANCELLED) {
-            throw new IllegalThreadStateException("A cancelled download cannot be restarted");
+            throw new InvalidStateException("A cancelled download cannot be restarted");
         }
         Response serverResponse = null;
         InputStream responseStream = null;
         boolean fileAppendMode = false;
-        try {
-            serverResponse = HttpUtils.getResponse(this.downloadUrl, "GET");
-            responseStream = serverResponse.body().byteStream();
-        } catch (IOException e) {
-            throw new ConnectionException("Error in receiving response object from server");
-        }
+
+        serverResponse = HttpUtils.getResponse(this.downloadUrl, "GET");
+        responseStream = serverResponse.body().byteStream();
+
         try {
             if(this.status == DownloadStatus.PAUSED) {
                 responseStream.skip(this.downloadedLength);
@@ -113,6 +114,7 @@ class SimpleDownloadUnit implements Runnable {
             try {
                 bytesReceived = responseStream.read(buffer);
             } catch (IOException e) {
+                e.printStackTrace();
                 throw new ConnectionException("Exception while reading from server response stream");
             }
 
@@ -129,16 +131,17 @@ class SimpleDownloadUnit implements Runnable {
             ++count;
             System.out.println("Count: " + count + " Wrote " + bytesReceived);
 
-            serverResponse.close();
+
         }
 
+        serverResponse.close();
         this.status = DownloadStatus.COMPLETED;
         System.out.println("Download complete");
     }
 
     public void cancel() {
         if(this.status == DownloadStatus.COMPLETED) {
-            throw new IllegalThreadStateException("An already completed download cannot be cancelled");
+            throw new InvalidStateException("An already completed download cannot be cancelled");
         } else {
             this.cancelDownload = true;
         }
@@ -149,7 +152,7 @@ class SimpleDownloadUnit implements Runnable {
         if(this.status == DownloadStatus.DOWNLOADING) {
             this.pauseDownload = true;
         } else {
-            throw new IllegalThreadStateException(String.format("Download in the %s format cannot be paused", this.status));
+            throw new InvalidStateException(String.format("Download in the %s state cannot be paused", this.status));
         }
     }
 
@@ -170,11 +173,11 @@ class SimpleDownloadUnit implements Runnable {
     }
 }
 
-public class SimpleDownloadTask implements DownloadTask {
-    private SimpleDownloadUnit downloadUnit;
+public class SerialDownloadTask implements DownloadTask {
+    private SerialDownloadUnit downloadUnit;
 
-    public SimpleDownloadTask(String downloadUrl, int bufferSize, File file) throws IOException {
-        downloadUnit = new SimpleDownloadUnit(downloadUrl, bufferSize, file);
+    public SerialDownloadTask(String downloadUrl, int bufferSize, File file) {
+        downloadUnit = new SerialDownloadUnit(downloadUrl, bufferSize, file);
     }
 
     @Override

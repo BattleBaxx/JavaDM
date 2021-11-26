@@ -1,84 +1,65 @@
 package api.download;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import core.DownloadManager;
-import core.exceptions.InvalidUrlException;
 
 @Service
 public class DownloadService {
-	private DownloadManager dm = DownloadManager.getInstance();
-	
-	public List<Map<String, String>> getDownloads() {
-		return dm.getAllDownloadDetails();
-	}
-	
-	public Map<String, String> getDownload(String id) {
-		return dm.getDownloadDetail(id);
-	}
+    private DownloadManager dm = DownloadManager.getInstance();
 
-	public void addDownload(Map<String, String> download) {
-		String url = download.get("url");
-		String fileName = download.get("file_name");
-		boolean containsParallel = download.containsKey("parallel_count");
-		boolean containsBufferSize = download.containsKey("buffer_size");
-		
-		if(containsParallel) {
-			int parallelCount = Integer.parseInt(download.get("parallel_count"));
-			if(containsBufferSize) {
-				int bufferSize = Integer.parseInt(download.get("buffer_size"));
-				try {
-					dm.createDownloadTask(url, bufferSize, fileName, parallelCount);
-				} catch (InvalidUrlException | IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}else {
-				try {
-					dm.createDownloadTask(url,fileName, parallelCount);
-				} catch (InvalidUrlException | IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-			
-		}else {
-			if(containsBufferSize) {
-				int bufferSize = Integer.parseInt(download.get("buffer_size"));
-				try {
-					dm.createDownloadTask(url, bufferSize, fileName);
-				} catch (InvalidUrlException | IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}else {
-				try {
-					dm.createDownloadTask(url,fileName);
-				} catch (InvalidUrlException | IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-		}
-		
-	}
+    public List<Map<String, String>> getDownloads() {
+        return dm.getAllDownloadDetails();
+    }
 
-	public void pauseDownload(String id) {
-		dm.pauseDownload(id);
-	}
-	
-	public void resumeDownload(String id) {
-		dm.resumeDownload(id);
-	}
+    public Map<String, String> getDownload(String id) {
+        return dm.getDownloadDetail(id);
+    }
 
-	public void cancelDownload(String id) {
-		dm.cancelDownload(id);
-		
-	}
+    public ResponseEntity<Map<String, String>> addDownload(Map<String, String> download) {
+        String url = download.get("url");
+        String fileName = download.get("file_name");
+        boolean containsParallel = download.containsKey("parallel_count");
+        boolean containsBufferSize = download.containsKey("buffer_size");
+        String id;
+
+        if (containsParallel) {
+            int parallelCount = Integer.parseInt(download.get("parallel_count"));
+            if (containsBufferSize) {
+                int bufferSize = Integer.parseInt(download.get("buffer_size"));
+                id = dm.createDownloadTask(url, bufferSize, fileName, parallelCount);
+            } else {
+                id = dm.createDownloadTask(url, fileName, parallelCount);
+            }
+
+        } else {
+            if (containsBufferSize) {
+                int bufferSize = Integer.parseInt(download.get("buffer_size"));
+                id = dm.createDownloadTask(url, bufferSize, fileName);
+            } else {
+                id = dm.createDownloadTask(url, fileName);
+            }
+        }
+
+        Map<String, String> resp = new HashMap<>();
+        resp.put("id", id);
+        return new ResponseEntity<>(resp, HttpStatus.OK);
+    }
+
+    public void pauseDownload(String id) {
+        dm.pauseDownload(id);
+    }
+
+    public void resumeDownload(String id) {
+        dm.resumeDownload(id);
+    }
+
+    public void cancelDownload(String id) {
+        dm.cancelDownload(id);
+
+    }
 }

@@ -1,14 +1,8 @@
 package api;
 
-import core.DownloadManager;
-import core.DownloadTask;
-import core.ParallelDownloadTask;
-import core.SimpleDownloadTask;
-import core.exceptions.InvalidResponseException;
 import core.exceptions.InvalidUrlException;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import core.util.HttpUtils;
 
 import java.io.IOException;
 

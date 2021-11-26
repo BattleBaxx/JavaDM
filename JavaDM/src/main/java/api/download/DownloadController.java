@@ -21,30 +21,28 @@ public class DownloadController {
 	@Autowired
 	private DownloadService downloadService;
 	
-	@RequestMapping("/downloads")
-	@JsonView(View.Get.class)
+	@RequestMapping(method = RequestMethod.GET, value ="/downloads")
 	public List<Map<String, String>> getAllDownloads() {
 		return downloadService.getDownloads();
 	}
 	
-	@RequestMapping("/download/{id}")
-	@JsonView(View.Get.class)
+	@RequestMapping(method = RequestMethod.GET, value ="/download/{id}")
 	public Map<String, String> getDownload(@PathVariable String id) {
 		return downloadService.getDownload(id);
 	}
 	
 	@RequestMapping(method=RequestMethod.POST, value="/download")
-	public ResponseEntity<Object> addDownload(@RequestBody Map<String, String> download) {
+	public ResponseEntity<Map<String, String>> addDownload(@RequestBody Map<String, String> download) {
 		if(!download.containsKey("url") || !download.containsKey("file_name")) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
-		downloadService.addDownload(download);
-		return null;
+		return downloadService.addDownload(download);
 	}
 	
 	@RequestMapping(method=RequestMethod.PUT, value="/download/pause/{id}")
-	public void pauseDownload(@PathVariable String id) {
+	public ResponseEntity<Map<String, String>> pauseDownload(@PathVariable String id) {
 		downloadService.pauseDownload(id);
+		return new ResponseEntity<>(HttpStatus.OK);
 	}
 	
 	@RequestMapping(method=RequestMethod.PUT, value="/download/resume/{id}")
