@@ -1,6 +1,5 @@
 package api.file;
 
-import ch.qos.logback.core.util.FileUtil;
 import core.DownloadManager;
 import core.exceptions.FileException;
 import core.exceptions.NoSuchFileException;
@@ -10,7 +9,6 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PathVariable;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,7 +25,7 @@ import java.util.Map;
 @Service
 public class FileService {
 
-    private DownloadManager dm = DownloadManager.getInstance();
+    private final DownloadManager dm = DownloadManager.getInstance();
     private static final DateTimeFormatter DATE_FORMATTER_WITH_TIME = DateTimeFormatter
             .ofPattern("MMM d, yyyy HH:mm:ss");
 
@@ -40,7 +38,7 @@ public class FileService {
         }
 
         Path filepath = requestedFile.toPath();
-        BasicFileAttributes attr = null;
+        BasicFileAttributes attr;
         try {
             attr = Files.readAttributes(filepath, BasicFileAttributes.class);
         } catch (IOException e) {
@@ -55,7 +53,10 @@ public class FileService {
     public List<Map<String, String>> getFiles() {
         List<Map<String, String>> files = new ArrayList<>();
         File directoryPath = new File(System.getenv("downloadFolder"));
-        String contents[] = directoryPath.list();
+        String[] contents = directoryPath.list();
+        if(contents == null) {
+            return null;
+        }
         for (String file : contents) {
             files.add(getFile(file));
         }
@@ -68,7 +69,9 @@ public class FileService {
         if (!file.canRead()) {
             throw new NoSuchFileException("Invalid ID, file does not exist");
         }
-        file.delete();
+        if(!file.delete()) {
+            throw new FileException("The file could not be deleted", 500);
+        }
         dm.removeDownloadId(id);
     }
 
@@ -79,7 +82,9 @@ public class FileService {
         }
         String newName = updatedFileDetails.get("name");
         File newFile = new File(FileUtils.getFullFilePath(newName));
-        oldFile.renameTo(newFile);
+        if (!oldFile.renameTo(newFile)) {
+            throw new NoSuchFileException("The file could not be renamed", 500);
+        }
         dm.updateDownloadId(id, newName);
     }
 

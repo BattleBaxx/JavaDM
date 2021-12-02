@@ -7,11 +7,10 @@ import core.exceptions.RedirectException;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import okhttp3.Headers;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
-import java.util.regex.*;
+import java.util.regex.Pattern;
 
 // A class that defines utility functions related to HTTP
 public class HttpUtils {
@@ -21,18 +20,8 @@ public class HttpUtils {
     }
 
     public static boolean supportsAcceptRanges(String url) {
-        OkHttpClient client = new OkHttpClient();
-        Request request = new Request.Builder()
-                .url(url)
-                .head()
-                .build();
+        Response response = HttpUtils.getResponse(url, "HEAD");
 
-        Response response = null;
-        try {
-            response = client.newCall(request).execute();
-        } catch (IOException ex) {
-            throw new ConnectionException("Could not establish connection with server");
-        }
         String respHeader = response.header("accept-ranges");
 
         if (respHeader == null || respHeader.equals("none"))
@@ -80,7 +69,7 @@ public class HttpUtils {
     public static Response getResponse(String url, @NotNull String method) {
         OkHttpClient client = HttpClient.getInstance();
         Request.Builder b = new Request.Builder().url(url);
-        Request req = null;
+        Request req;
         switch (method) {
             case "GET":
                 req = b.get().build();
@@ -88,6 +77,8 @@ public class HttpUtils {
             case "HEAD":
                 req = b.head().build();
                 break;
+            default:
+                return null;
         }
         try {
             return client.newCall(req).execute();
@@ -98,6 +89,11 @@ public class HttpUtils {
 
     public static String getExtension(String url) {
         Response resp = getResponse(url, "HEAD");
-        return resp.body().contentType().subtype();
+
+        try {
+            return resp.body().contentType().subtype();
+        } catch(NullPointerException ne) {
+            return "txt";
+        }
     }
 }

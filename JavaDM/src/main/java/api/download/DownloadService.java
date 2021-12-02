@@ -10,7 +10,7 @@ import core.DownloadManager;
 
 @Service
 public class DownloadService {
-    private DownloadManager dm = DownloadManager.getInstance();
+    private final DownloadManager dm = DownloadManager.getInstance();
 
     public List<Map<String, String>> getDownloads() {
         return dm.getAllDownloadDetails();

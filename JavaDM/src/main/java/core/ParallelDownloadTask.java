@@ -14,10 +14,10 @@ import java.util.Map;
 
 
 class ParallelDownloadUnit implements Runnable {
-    private String downloadUrl;
-    private int bufferSize;
-    private long start;
-    private long end;
+    private final String downloadUrl;
+    private final int bufferSize;
+    private final long start;
+    private final long end;
     private volatile boolean pauseDownload;
     private volatile boolean cancelDownload;
     private long downloadedLength;
@@ -47,8 +47,8 @@ class ParallelDownloadUnit implements Runnable {
         if (this.status == DownloadStatus.CANCELLED) {
             throw new InvalidStateException("Task has been cancelled");
         }
-        Response serverResponse = null;
-        InputStream responseStream = null;
+        Response serverResponse;
+        InputStream responseStream;
         OkHttpClient client = HttpClient.getInstance();
 
         Request partialRequest = new Request.Builder()
@@ -80,7 +80,6 @@ class ParallelDownloadUnit implements Runnable {
         byte[] buffer = new byte[this.bufferSize];
 
         int bytesReceived;
-        int count = 0;
 
 //            System.out.println("Before the loop");
         while (true) {
@@ -131,13 +130,11 @@ class ParallelDownloadUnit implements Runnable {
             } catch (IOException e) {
                 throw new FileException("Exception while writing to file");
             }
-            ++count;
-//                System.out.println("Thread: " + Thread.currentThread().getName() + "Count: " + count + " Wrote " + bytesReceived);
         }
 
         serverResponse.close();
 
-        System.out.println("Set to completed");
+//        System.out.println("Set to completed");
         this.status = DownloadStatus.COMPLETED;
     }
 
@@ -165,8 +162,6 @@ class ParallelDownloadUnit implements Runnable {
 public class ParallelDownloadTask implements DownloadTask {
     private List<ParallelDownloadUnit> downloadUnits;
     private long totalDownloadLength;
-    private long rangeSize;
-    private File downloadFile;
 
     public ParallelDownloadTask(String downloadUrl, int bufferSize, File file, int parallelCount) {
         Response serverResponse = HttpUtils.getResponse(downloadUrl, "HEAD");
@@ -176,12 +171,12 @@ public class ParallelDownloadTask implements DownloadTask {
             throw new InvalidResponseException("Server does not support content-length");
         }
 
-        this.rangeSize = (long) Math.ceil((double) this.totalDownloadLength / parallelCount);
+        long rangeSize = (long) Math.ceil((double) this.totalDownloadLength / parallelCount);
         long offset = 0;
 
         try {
             FileOutputStream fout = new FileOutputStream(file);
-            byte buf[] = new byte[1024];
+            byte[] buf = new byte[1024];
             for (int size = 0; size < this.totalDownloadLength; size += buf.length) {
                 fout.write(buf);
                 fout.flush();
@@ -191,13 +186,11 @@ public class ParallelDownloadTask implements DownloadTask {
             throw new FileException("Error while creating file");
         }
 
-        this.downloadFile = file;
-
         downloadUnits = new ArrayList<>();
 
         for (int i = 0; i < parallelCount; i++) {
-            downloadUnits.add(new ParallelDownloadUnit(downloadUrl, bufferSize, offset, Math.min(offset + this.rangeSize, this.totalDownloadLength), this.downloadFile));
-            offset += this.rangeSize;
+            downloadUnits.add(new ParallelDownloadUnit(downloadUrl, bufferSize, offset, Math.min(offset + rangeSize, this.totalDownloadLength), file));
+            offset += rangeSize;
         }
 
     }

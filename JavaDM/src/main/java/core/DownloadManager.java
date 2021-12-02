@@ -2,13 +2,16 @@ package core;
 
 import core.exceptions.InvalidUrlException;
 import core.exceptions.NoSuchDownloadException;
+import core.exceptions.RangesUnsupportedException;
 import core.util.FileUtils;
 import core.util.HttpUtils;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class DownloadManager {
 
@@ -51,6 +54,10 @@ public class DownloadManager {
 
     public String createDownloadTask(String url, int maxBufferSize, String fileName, int parallelCount) {
         String fullFileName = this.createDownloadTaskInit(url, fileName);
+
+        if(!HttpUtils.supportsAcceptRanges(url)) {
+            throw new RangesUnsupportedException("A parallelized download may not be created for a server that does not support ranges");
+        }
 
         String fullFilePath = Paths.get(System.getenv("downloadFolder"), fullFileName).toString();
         File downloadFile = new File(fullFilePath);
@@ -96,13 +103,6 @@ public class DownloadManager {
             throw new NoSuchDownloadException("Invalid download ID");
         }
         this.downloadTaskList.get(fileName).resume();
-    }
-
-    public void getDownloadStatus(String fileName) {
-        if(!this.downloadTaskList.containsKey(fileName)) {
-            throw new NoSuchDownloadException("Invalid download ID");
-        }
-        this.downloadTaskList.get(fileName).getStatus();
     }
 
     public Map<String, String> getDownloadDetail(String fileName) {

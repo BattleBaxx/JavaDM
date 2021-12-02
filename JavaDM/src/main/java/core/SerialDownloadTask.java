@@ -12,8 +12,8 @@ import java.util.Map;
 
 class SerialDownloadUnit implements Runnable {
 
-    private String downloadUrl;
-    private int bufferSize;
+    private final String downloadUrl;
+    private final int bufferSize;
     private File file;
     private volatile boolean pauseDownload;
     private volatile boolean cancelDownload;
@@ -45,8 +45,8 @@ class SerialDownloadUnit implements Runnable {
         if(this.status == DownloadStatus.CANCELLED) {
             throw new InvalidStateException("A cancelled download cannot be restarted");
         }
-        Response serverResponse = null;
-        InputStream responseStream = null;
+        Response serverResponse;
+        InputStream responseStream;
         boolean fileAppendMode = false;
 
         serverResponse = HttpUtils.getResponse(this.downloadUrl, "GET");
@@ -74,7 +74,6 @@ class SerialDownloadUnit implements Runnable {
         byte[] buffer = new byte[this.bufferSize];
 
         int bytesReceived;
-        int count = 0;
 
         System.out.println("Before the loop");
         while(true) {
@@ -126,10 +125,6 @@ class SerialDownloadUnit implements Runnable {
             } catch (IOException e) {
                 throw new FileException("Exception while writing to file");
             }
-
-            ++count;
-//            System.out.println("Count: " + count + " Wrote " + bytesReceived);
-
 
         }
 
