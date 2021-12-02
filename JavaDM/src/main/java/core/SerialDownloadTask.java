@@ -91,7 +91,6 @@ class SerialDownloadUnit implements Runnable {
                 }
                 this.status = DownloadStatus.CANCELLED;
                 this.cancelDownload = false;
-                this.file.delete();
                 return;
             }
 
@@ -129,7 +128,7 @@ class SerialDownloadUnit implements Runnable {
             }
 
             ++count;
-            System.out.println("Count: " + count + " Wrote " + bytesReceived);
+//            System.out.println("Count: " + count + " Wrote " + bytesReceived);
 
 
         }

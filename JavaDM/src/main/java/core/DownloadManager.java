@@ -121,4 +121,20 @@ public class DownloadManager {
         }
         return result;
     }
+
+    public void updateDownloadId(String existingId, String newId) {
+        if(!downloadTaskList.containsKey(existingId)) {
+            throw new NoSuchDownloadException("Provided download ID does not exist");
+        }
+        DownloadTask dt = this.downloadTaskList.get(existingId);
+        this.downloadTaskList.put(newId, dt);
+        this.downloadTaskList.remove(existingId);
+    }
+
+    public void removeDownloadId(String id) {
+        if(!downloadTaskList.containsKey(id)) {
+            throw new NoSuchDownloadException("Provided download ID does not exist");
+        }
+        this.downloadTaskList.remove(id);
+    }
 }

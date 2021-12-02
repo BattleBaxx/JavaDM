@@ -31,24 +31,11 @@ public class FileController {
 
     @RequestMapping(method = RequestMethod.GET, value = "/downloadFile/{id}")
     public ResponseEntity<Resource> getFileDownload(@PathVariable String id) {
-        String fullFilePath = FileUtils.getFullFilePath(id);
-
-        File respFile = new File(fullFilePath);
-
-        if (!respFile.canRead()) {
-            throw new NoSuchFileException("Invalid ID, file does not exist");
-        }
-
-        FileSystemResource fsr = new FileSystemResource(respFile);
-
-        return ResponseEntity.ok()
-                .contentLength(respFile.length())
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(fsr);
+        return fileService.downloadFile(id);
     }
 
     @RequestMapping(method = RequestMethod.PUT, value = "/file/{id}")
-    public void updateFile(@RequestBody Map<String, Object> updatedFileDetails, @PathVariable String id) {
+    public void updateFile(@RequestBody Map<String, String> updatedFileDetails, @PathVariable String id) {
         fileService.updateFile(updatedFileDetails, id);
     }
 

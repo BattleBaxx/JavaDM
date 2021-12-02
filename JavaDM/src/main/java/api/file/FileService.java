@@ -1,6 +1,16 @@
 package api.file;
 
+import ch.qos.logback.core.util.FileUtil;
+import core.DownloadManager;
+import core.exceptions.FileException;
+import core.exceptions.NoSuchFileException;
+import core.util.FileUtils;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import java.io.File;
 import java.io.IOException;
@@ -17,18 +27,24 @@ import java.util.Map;
 @Service
 public class FileService {
 
+    private DownloadManager dm = DownloadManager.getInstance();
     private static final DateTimeFormatter DATE_FORMATTER_WITH_TIME = DateTimeFormatter
-            .ofPattern("MMM d, yyyy HH:mm:ss.SSS");
-    final private String downloadPath = System.getenv("downloadFolder");
+            .ofPattern("MMM d, yyyy HH:mm:ss");
 
     public Map<String, String> getFile(String id) {
         HashMap<String, String> fileDetails = new HashMap<>();
-        Path filepath = new File(downloadPath + id).toPath();
+
+        File requestedFile = new File(FileUtils.getFullFilePath(id));
+        if (!requestedFile.canRead()) {
+            throw new NoSuchFileException("Invalid ID, file does not exist");
+        }
+
+        Path filepath = requestedFile.toPath();
         BasicFileAttributes attr = null;
         try {
             attr = Files.readAttributes(filepath, BasicFileAttributes.class);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new FileException("An error occurred while reading the attributes of the requested file");
         }
         fileDetails.put("name", id);
         fileDetails.put("created_time", attr.creationTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime().format(DATE_FORMATTER_WITH_TIME));
@@ -38,7 +54,7 @@ public class FileService {
 
     public List<Map<String, String>> getFiles() {
         List<Map<String, String>> files = new ArrayList<>();
-        File directoryPath = new File(downloadPath);
+        File directoryPath = new File(System.getenv("downloadFolder"));
         String contents[] = directoryPath.list();
         for (String file : contents) {
             files.add(getFile(file));
@@ -47,13 +63,40 @@ public class FileService {
     }
 
     public void deleteFile(String id) {
-        File file = new File(downloadPath + id);
+        String fullFilePath = FileUtils.getFullFilePath(id);
+        File file = new File(fullFilePath);
+        if (!file.canRead()) {
+            throw new NoSuchFileException("Invalid ID, file does not exist");
+        }
         file.delete();
+        dm.removeDownloadId(id);
     }
 
-    public void updateFile(Map<String, Object> updatedFileDetails, String id) {
-        File oldFile = new File(downloadPath + id);
-        File newFile = new File(downloadPath + updatedFileDetails.get("name"));
+    public void updateFile(Map<String, String> updatedFileDetails, String id) {
+        File oldFile = new File(FileUtils.getFullFilePath(id));
+        if (!oldFile.canRead()) {
+            throw new NoSuchFileException("Invalid ID, file does not exist");
+        }
+        String newName = updatedFileDetails.get("name");
+        File newFile = new File(FileUtils.getFullFilePath(newName));
         oldFile.renameTo(newFile);
+        dm.updateDownloadId(id, newName);
+    }
+
+    public ResponseEntity<Resource> downloadFile(String id) {
+        String fullFilePath = FileUtils.getFullFilePath(id);
+
+        File respFile = new File(fullFilePath);
+
+        if (!respFile.canRead()) {
+            throw new NoSuchFileException("Invalid ID, file does not exist");
+        }
+
+        FileSystemResource fsr = new FileSystemResource(respFile);
+
+        return ResponseEntity.ok()
+                .contentLength(respFile.length())
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(fsr);
     }
 }

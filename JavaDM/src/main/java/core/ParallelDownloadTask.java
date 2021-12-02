@@ -137,7 +137,6 @@ class ParallelDownloadUnit implements Runnable {
 
         serverResponse.close();
 
-
         System.out.println("Set to completed");
         this.status = DownloadStatus.COMPLETED;
     }
@@ -232,8 +231,6 @@ public class ParallelDownloadTask implements DownloadTask {
             pdu.cancel();
         }
 
-        this.downloadFile.delete();
-
     }
 
     @Override
@@ -276,7 +273,7 @@ public class ParallelDownloadTask implements DownloadTask {
         int downloadingCount = 0;
 
         for (ParallelDownloadUnit pdu : this.downloadUnits) {
-            System.out.println(pdu.getStatus());
+//            System.out.println(pdu.getStatus());
             if (pdu.getStatus() == DownloadStatus.CANCELLED)
                 cancelledCount++;
             if (pdu.getStatus() == DownloadStatus.PAUSED)

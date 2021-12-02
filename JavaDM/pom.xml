@@ -31,7 +31,7 @@
         </plugins>
     </build>
     <properties>
-        <exec.mainClass>io.javapackage.App</exec.mainClass>
+        <exec.mainClass>api.App</exec.mainClass>
     </properties>
     <repositories>
         <repository>
